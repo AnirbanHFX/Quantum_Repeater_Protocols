@@ -1,0 +1,17 @@
+Bob: Bob received EPR 0
+Bob: Bob received EPR 1
+Bob: Bob received EPR 2
+Bob: Bob received EPR 3
+Bob: Bob received EPR 4
+Bob: Bob received EPR 5
+Bob: Bob received EPR 6
+Bob: Bob received EPR 7
+Bob: Bob received EPR 8
+Bob: Bob received EPR 9
+Bob: Bob received EPR 10
+Bob: Bob received EPR 11
+Bob: Bob received EPR 12
+Bob: Bob received EPR 13
+Bob: Bob received EPR 14
+Bob: Bob received EPR 15
+Bob: Secret Key : 0111011010100001
