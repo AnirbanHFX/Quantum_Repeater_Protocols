@@ -1,17 +1,9 @@
 Alice: Alice received EPR 0
 Alice: Alice received EPR 1
+Alice: Bit count mismatch for 1, rewinding
+Alice: Alice received EPR 1
+Alice: Bit count mismatch for 1, rewinding
+Alice: Alice received EPR 1
 Alice: Alice received EPR 2
 Alice: Alice received EPR 3
-Alice: Alice received EPR 4
-Alice: Alice received EPR 5
-Alice: Alice received EPR 6
-Alice: Alice received EPR 7
-Alice: Alice received EPR 8
-Alice: Alice received EPR 9
-Alice: Alice received EPR 10
-Alice: Alice received EPR 11
-Alice: Alice received EPR 12
-Alice: Alice received EPR 13
-Alice: Alice received EPR 14
-Alice: Alice received EPR 15
-Alice: Secret Key : 0111011010100001
+Alice: Secret Key : 1001
