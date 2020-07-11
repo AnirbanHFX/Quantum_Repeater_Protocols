@@ -1,5 +1,6 @@
 import random
 import time
+import sys
 
 from components.host import Host
 from components.network import Network
@@ -7,14 +8,20 @@ from objects.qubit import Qubit
 
 def AliceProtocol(host, repeater):
 
+    timeout = 180
+    start = time.time()
+
     logalice = open("logs/alicelog.txt", "w")
 
     bit_count = 0
     secret_key = ""
 
-    while bit_count < 4:
+    while bit_count < 1:
 
         time.sleep(1)
+
+        if time.time() - start > timeout:
+            return
 
         bitcount = host.get_next_classical(repeater, wait=5)
         if bitcount is None:
@@ -66,18 +73,28 @@ def AliceProtocol(host, repeater):
         # Append bit to keystream
         secret_key += str(bit)
 
-    print("Alice: Secret Key : %s"%str(secret_key))
+    print("Alice: Secret Key : %s (time %fs)"%(str(secret_key), host.get_network_time))
     logalice.write("Alice: Secret Key : %s"%str(secret_key))
+
+    reading = open("logs/output.txt", "a+")
+    reading.write("%f\n"%host.get_network_time)
+    reading.close()
 
     logalice.close()
 
 def RepeaterProtocol(host, alice, bob):
 
+    timeout = 180
+    start = time.time()
+
     logrepeater = open("logs/repeater.txt", "w")
 
     bit_count = 0
 
-    while bit_count < 4:
+    while bit_count < 1:
+
+        if time.time() - start > timeout:
+            return
 
         host.empty_classical()
         time.sleep(1)
@@ -190,12 +207,18 @@ def BobProtocol(host, repeater):
 
     logbob = open("logs/boblog.txt", "w")
 
+    timeout = 180
+    start = time.time()
+
     bit_count = 0
     secret_key = ""
 
-    while bit_count < 4:
+    while bit_count < 1:
 
         time.sleep(1)
+
+        if time.time() - start > timeout:
+            return
 
         # Synchronize with repeater
         bitcount = host.get_next_classical(repeater, wait=5)
@@ -260,8 +283,10 @@ def BobProtocol(host, repeater):
 
         bit_count += 1
 
-    print("Bob:   Secret Key : %s"%str(secret_key))
+    print("Bob:   Secret Key : %s (time %fs)"%(str(secret_key), host.get_network_time))
     logbob.write("Bob: Secret Key : %s\n"%str(secret_key))
+
+
 
     logbob.close()
 
@@ -270,31 +295,42 @@ def main() :
     network = Network.get_instance()
     nodes = ['Alice', 'R', 'Bob']
     network.use_ent_swap = True
+    network.delay = 0
     network.start(nodes)
 
     alice = Host('Alice')
-    alice.add_connection('R')
+    alice.add_connection('R', 100)
     alice.max_ack_wait = 5
+    #alice.coherence_time = 0.0003
     alice.start()
 
     repeater = Host('R')
-    repeater.add_connection('Alice', 10, 0.1)
-    repeater.add_connection('Bob', 10, 0.1)
+    repeater.add_connection('Alice', 100)
+    repeater.add_connection('Bob', 100)
     repeater.max_ack_wait = 5
+    #repeater.coherence_time = 0.0003
     repeater.start()
 
     bob = Host('Bob')
-    bob.add_connection('R')
+    bob.add_connection('R', 100)
     bob.max_ack_wait = 5
+    #bob.coherence_time = 0.0003
     bob.start()
 
     network.add_host(alice)
     network.add_host(repeater)
     network.add_host(bob)
 
-    alice.run_protocol(AliceProtocol, (repeater.host_id,))
-    repeater.run_protocol(RepeaterProtocol, (alice.host_id, bob.host_id))
-    bob.run_protocol(BobProtocol, (repeater.host_id,))
+    t1 = alice.run_protocol(AliceProtocol, (repeater.host_id,))
+    t2 = repeater.run_protocol(RepeaterProtocol, (alice.host_id, bob.host_id))
+    t3 = bob.run_protocol(BobProtocol, (repeater.host_id,))
+
+    t1.join()
+    t2.join()
+    t3.join()
+
+    network.stop(True)
+    sys.exit()
 
 if __name__ == '__main__':
     main()

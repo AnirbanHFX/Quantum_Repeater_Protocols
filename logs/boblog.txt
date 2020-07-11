@@ -1,7 +1,5 @@
-Bob: Bob received EPR 0
-Bob: Bob did not receive EPR 1
-Bob: Bob did not receive EPR 1
-Bob: Bob received EPR 1
-Bob: Bob received EPR 2
-Bob: Bob received EPR 3
-Bob: Secret Key : 1001
+Bob: Received EPR pair 0
+Bob: EPR pair 1 not received, trying again
+Bob: Received EPR pair 1
+Bob: Received EPR pair 2
+Bob: Received EPR pair 3

@@ -24,13 +24,18 @@ def AliceProtocol(host, receiver, Y, M):
             if ack_arrived:
                 q = host.get_epr(receiver, q_id=epr_id)
                 if q is not None:
-                    print('Alice: EPR pair %d shared'%_)
-                    logalice.write('Alice: EPR pair %d shared\n'%_)
                     host.send_ack(receiver, _)
-                    time.sleep(5)
-                    success = True
-                    #print('Alice: fidelity = %f'%q.fidelity)
-                    epr_list.append(q.id)
+                    ack_arrived = host.await_ack(_, receiver)
+                    if ack_arrived:
+                        print('Alice: EPR pair %d shared'%_)
+                        logalice.write('Alice: EPR pair %d shared\n'%_)
+                        time.sleep(5)
+                        success = True
+                        #print('Alice: fidelity = %f'%q.fidelity)
+                        epr_list.append(q.id)
+                    else:
+                        print('Alice: EPR pair %d failed, trying again'%_)
+                        logalice.write('Alice: EPR pair %d failed, trying again\n'%_)
                 else:
                     print('Alice: EPR pair %d failed, trying again'%_)
                     logalice.write('Alice: EPR pair %d failed, trying again\n'%_)
@@ -57,6 +62,7 @@ def BobProtocol(host, sender, Y, M):
             if q is not None:
                 ack_arrived = host.await_ack(_, sender)
                 if ack_arrived:
+                    host.send_ack(sender, _)
                     print('Bob: Received EPR pair %d'%_)
                     logbob.write('Bob: Received EPR pair %d\n'%_)
                     epr_list.append(q.id)
@@ -75,9 +81,7 @@ def BobProtocol(host, sender, Y, M):
 def checksuccess(messages, text):
     if len(messages) > 0:
         for message in messages:
-            temp = str(message)
-            temp = temp.split('\n')
-            temp = temp[1].strip('Content:')
+            temp = message.content
             if str(temp).strip() != str(text).strip():
                 print('Message = %s'%temp)
                 return 0
@@ -96,6 +100,7 @@ def RepeaterProtocol(host, sender, receiver, self_id, repeaterexp, Y, M):
             if ack_arrived:
                 print('Repeater %d: Received EPR pair %d'%(self_id, seq))
                 logrep.write('Repeater %d: Received EPR pair %d\n'%(self_id, seq))
+                host.send_ack(sender, seq)
                 host.send_broadcast(str('epr'))
                 return q_left
             else:
@@ -118,10 +123,16 @@ def RepeaterProtocol(host, sender, receiver, self_id, repeaterexp, Y, M):
             q_right = host.get_epr(receiver, q_id = epr_id)
             if q_right is not None:
                 host.send_ack(receiver, seq)
-                print('Repeater %d: EPR pair %d shared'%(self_id, seq))
-                logrep.write('Repeater %d: EPR pair %d shared\n'%(self_id, seq))
-                epr_list.append(epr_id)
-                return q_right
+                ack_arrived = host.await_ack(seq, receiver)
+                if ack_arrived:
+                    print('Repeater %d: EPR pair %d shared'%(self_id, seq))
+                    logrep.write('Repeater %d: EPR pair %d shared\n'%(self_id, seq))
+                    epr_list.append(epr_id)
+                    return q_right
+                else:
+                    print('Repeater %d: EPR pair %d failed, trying again'%(self_id, seq))
+                    logrep.write('Repeater %d: EPR pair %d failed, trying again\n'%(self_id, seq))
+                    return None
             else:
                 print('Repeater %d: EPR pair %d failed, trying again'%(self_id, seq))
                 logrep.write('Repeater %d: EPR pair %d failed, trying again\n'%(self_id, seq))
@@ -239,7 +250,13 @@ def RepeaterProtocol(host, sender, receiver, self_id, repeaterexp, Y, M):
                 if i < len(repeaterlist) and self_id == repeaterlist[i]:
                     q_left_list[_].fidelity = (1-2*q_left_list[_].fidelity+4*q_left_list[_].fidelity*q_left_list[_].fidelity)/3
                     while success == False:
-                        success = send_teleport(host, receiver, q_left_list[_], self_id, logrep)
+                        try:
+                            success = send_teleport(host, receiver, q_left_list[_], self_id, logrep)
+                        except:
+                            print("Qubit lost, transmission failed")
+                            logrep.write("Qubit lost, transmission failed")
+                            logrep.close
+                            return
                     #host.send_classical(sender, str(q_left_list[_].id+'\n'+str(q_left_list[_].fidelity)))
         removal = []
         for i in range(0, num_repeaters, 2):
@@ -247,6 +264,13 @@ def RepeaterProtocol(host, sender, receiver, self_id, repeaterexp, Y, M):
         for removablerepeater in removal:
             repeaterlist.remove(removablerepeater)
         num_repeaters = int(num_repeaters/2)
+
+    logrep.close()
+
+    outputlog = open("logs/output.txt", "a+")
+    outputlog.write("%f\n"%host.get_network_time)
+    print("Completion at time = %f"%host.get_network_time)
+    outputlog.close()
 
     print('Repeater %d: Success, Over and Out'%self_id)
     return
@@ -257,50 +281,58 @@ def main():
     M = 2
 
     network = Network.get_instance()
-    nodes = ['Alice','C0','C1','C2','Bob']
+    nodes = ['Alice','C0','Bob']
     network.use_ent_swap = True
     network.start(nodes)
-
+#0.01549
     alice = Host('Alice')
-    alice.add_connection('C0', 10, 0.3)
-    alice.fidelity = 0.89
+    alice.add_connection('C0', 100)
+    alice.coherence_time = 1
     alice.max_ack_wait = 5
     alice.start()
 
     repeater0 = Host('C0')
-    repeater0.add_connection('Alice')
-    repeater0.add_connection('C1')
+    repeater0.add_connection('Alice', 100)
+    repeater0.add_connection('Bob', 100)
+    repeater0.coherence_time = 1
     repeater0.max_ack_wait = 5
     repeater0.start()
 
-    repeater1 = Host('C1')
-    repeater1.add_connection('C0')
-    repeater1.add_connection('C2')
-    repeater1.max_ack_wait = 5
-    repeater1.start()
+    # repeater1 = Host('C1')
+    # repeater1.add_connection('C0')
+    # repeater1.add_connection('C2')
+    # repeater1.max_ack_wait = 5
+    # repeater1.start()
 
-    repeater2 = Host('C2')
-    repeater2.add_connection('C1')
-    repeater2.add_connection('Bob')
-    repeater2.max_ack_wait = 5
-    repeater2.start()
+    # repeater2 = Host('C2')
+    # repeater2.add_connection('C1')
+    # repeater2.add_connection('Bob')
+    # repeater2.max_ack_wait = 5
+    # repeater2.start()
 
     bob = Host('Bob')
-    bob.add_connection('C2')
+    bob.add_connection('C0', 100)
+    bob.coherence_time = 1
     bob.max_ack_wait = 5
     bob.start()
 
     network.add_host(alice)
     network.add_host(repeater0)
-    network.add_host(repeater1)
-    network.add_host(repeater2)
+    #network.add_host(repeater1)
+    #network.add_host(repeater2)
     network.add_host(bob)
     
-    alice.run_protocol(AliceProtocol, (repeater0.host_id, Y, M))
-    repeater0.run_protocol(RepeaterProtocol, (alice.host_id, repeater1.host_id, 0, 2, Y, M))
-    repeater1.run_protocol(RepeaterProtocol, (repeater0.host_id, repeater2.host_id, 1, 2, Y, M))
-    repeater2.run_protocol(RepeaterProtocol, (repeater1.host_id, bob.host_id, 2, 2, Y, M))
-    bob.run_protocol(BobProtocol, (repeater2.host_id, Y, M))
+    t1 = alice.run_protocol(AliceProtocol, (repeater0.host_id, Y, M))
+    t2 = repeater0.run_protocol(RepeaterProtocol, (alice.host_id, bob.host_id, 0, 1, Y, M))
+    #repeater1.run_protocol(RepeaterProtocol, (repeater0.host_id, repeater2.host_id, 1, 2, Y, M))
+    #repeater2.run_protocol(RepeaterProtocol, (repeater1.host_id, bob.host_id, 2, 2, Y, M))
+    t3 = bob.run_protocol(BobProtocol, (repeater0.host_id, Y, M))
+
+    t1.join()
+    t2.join()
+    t3.join()
+
+    network.stop(True)
 
 if __name__ == '__main__':
 

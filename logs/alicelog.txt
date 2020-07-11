@@ -1,9 +1,10 @@
-Alice: Alice received EPR 0
-Alice: Alice received EPR 1
-Alice: Bit count mismatch for 1, rewinding
-Alice: Alice received EPR 1
-Alice: Bit count mismatch for 1, rewinding
-Alice: Alice received EPR 1
-Alice: Alice received EPR 2
-Alice: Alice received EPR 3
-Alice: Secret Key : 1001
+Alice: Sending EPR pair 0
+Alice: EPR pair 0 shared
+Alice: Sending EPR pair 1
+Alice: EPR pair 1 shared
+Alice: Sending EPR pair 2
+Alice: EPR pair 2 failed, trying again
+Alice: Sending EPR pair 2
+Alice: EPR pair 2 shared
+Alice: Sending EPR pair 3
+Alice: EPR pair 3 shared
